@@ -49,12 +49,8 @@ class UsuarioController extends Controller
     public function create(UsuarioRequest $request)
     {
         $registro = $request->all();
-        $registro['data_nascimento'] = Carbon::createFromFormat('d/m/Y', $request['data_nascimento'])
-            ->format('Y-m-d');
-
-         if (empty($registro['profile_pic'])){
-            $registro['profile_pic']='boy.png';
-             }
+        //$registro['data_nascimento'] = Carbon::createFromFormat('d/m/Y', $request['data_nascimento'])
+            //->format('Y-m-d');
 
         $this->repository->create($registro);
         return redirect()->route('usuario.listar');

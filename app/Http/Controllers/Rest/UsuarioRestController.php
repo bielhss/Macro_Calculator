@@ -1,22 +1,27 @@
-<?php
+=<?php
 
 namespace App\Http\Controllers;
 
+
+use App\Http\Controllers\Controller;
 use App\models\Usuario;
 use Illuminate\Cache\Repository;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
-//use App\Http\Requests\UsuarioRequest;
+use App\Http\Requests\UsuarioRequest;
 use Illuminate\Support\Facades\DB;
+use Symfony\Component\Console\Output\ConsoleOutput;
 
 class UsuarioRestController extends Controller
 {
     private $repository;
     protected $request;
 
-    public function __construct(Request $request, Usuario $usuario)
+    public function __construct(Request $request, Usuario $usuario,  ConsoleOutput $out)
     {
         $this->repository = $usuario;
         $this->request = $request;
+        $this->out = $out;     
     }
 
 // ------------------------------------Listar Usuarios----------------------------------------------------- //
@@ -45,7 +50,7 @@ class UsuarioRestController extends Controller
             $query = DB::table('usuarios')->select('*')->orderBy( $props, $dir);   
         } else {
             $query = DB::table('usuarios')->where('nome', 'LIKE','%'.$search.'%')
-                                        //->orWhere('email','LIKE','%'.$search.'%')
+                                        ->orWhere('email','LIKE','%'.$search.'%')
                                         ->orderBy( $props, $dir); 
         } 
 
@@ -162,5 +167,3 @@ class UsuarioRestController extends Controller
     {
         return redirect()->route('usuario.listar');
     }
-
-}
