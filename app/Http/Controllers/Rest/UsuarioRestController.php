@@ -3,9 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\models\Usuario;
+use Illuminate\Cache\Repository;
 use Illuminate\Http\Request;
-use Carbon\Carbon;
-use App\Http\Requests\UsuarioRequest;
+//use App\Http\Requests\UsuarioRequest;
+use Illuminate\Support\Facades\DB;
 
 class UsuarioRestController extends Controller
 {
@@ -18,19 +19,56 @@ class UsuarioRestController extends Controller
         $this->request = $request;
     }
 
-    //retorna lista a pagina de listagem de autores
+// ------------------------------------Listar Usuarios----------------------------------------------------- //
+    //retorna a pagina de listagem de Usuarios
+    // paginaAtual 0....n
+    // pageSize    5,10,15,20,25.... 
+    // dir/sort    classificar -> asc, desc 
+    // props "campos da tabela" -> id, nome, email.
+    // search      nome, email, cpf, cgc ......             
+
     public function index(Request $request)
     {
+        //$this->out->writeln("Hello from Terminal");
 
-        $registros = $this->repository->paginate();
-        return response()->json($registros);
+        //$registros = $this->repository->paginate();
+
+        //DB::table('usuarios')->paginate();
+
+        $paginaAtual = $request->get('paginaAtual') ? $request->get('paginaAtual') : 1;
+        $pageSize    = $request->get('pageSize') ? $request->get('pageSize') : 5;
+        $dir         = $request->get('dir') ? $request->get('dir') : "asc";
+        $props       = $request->get('props') ? $request->get('props') : "id";
+        $search      = $request->get('search') ? $request->get('search') : "";
+
+        if (empty($search)){
+            $query = DB::table('usuarios')->select('*')->orderBy( $props, $dir);   
+        } else {
+            $query = DB::table('usuarios')->where('nome', 'LIKE','%'.$search.'%')
+                                        //->orWhere('email','LIKE','%'.$search.'%')
+                                        ->orderBy( $props, $dir); 
+        } 
+
+        $total = $query->count();
+
+        $registros = $query->offset(($paginaAtual-1) * $pageSize)->limit($pageSize)->get();
+
+        return response()->json([
+            'data'        =>$registros,
+            'paginaAtual' =>$paginaAtual-1,
+            'pageSize'    =>$pageSize,
+            'paginaFim'   =>ceil($total/$pageSize),
+            'total'       =>$total,
+        ]);
     }
 
+// ------------------------------------Pesquisar Usuarios----------------------------------------------------- //
+    //retorna registro de um usuario
     public function search(Request $request)
     {
-
         $filters = $request->all();
-        $registros = $this->repository->search($request->nome);
+
+        $registros = $this->repository->search($request->nick);
 
         return view('usuario.index', [
             'registros' => $registros,
@@ -38,67 +76,63 @@ class UsuarioRestController extends Controller
         ]);
     }
 
+// ------------------------------------Incluir Usuarios----------------------------------------------------- //
     //retorna a pagina para cadastrar um novo usuario
     public function new()
     {
         return view('usuario.incluir');
     }
+
     // salvar o registro de um novo usuario
-    public function create(UsuarioRequest $request)
+    public function create(Request $request)
     {
-        $registro = $request->all();
-        $this->repository->create($registro);
-        return response()->json(['mensagem'=>'cadastro realizado com sucesso!']);
+        $data = $request->all();
+        $this->repository->create($data);
+        return response()->json(['mensagem'=>'Cadastro realizado com sucesso!']);
     }
 
-    //retorna o registro de um usuario para alteração dos dados. 
+// ------------------------------------Alterar Usuarios----------------------------------------------------- //
+    //retorna o registro de um usuario para a alteração dos dados
     public function update($id)
     {
         $registro = $this->repository->find($id);
 
         if (!$registro) {
-            return redirect()->back();
+            return response()->json(['mensagem' => "Registro não localizado!"]);
         }
 
-        return view(
-            'usuario.alterar',
-            [
-                'registro' => $registro,
-            ]
-        );
+        return  response()->json(['autor' => $registro]);
     }
 
-    //alterar no banco o registro do usuario- modificado pelo usuario
-    public function save(UsuarioRequest $request, $id)
+    //alterar no banco o registro do usuario que modificado pelo usuario - tela
+    public function save(Request $request, $id)
     {
         $data = $request->all();
         $registro = $this->repository->find($id);
 
+        if (!$registro){
+            return response()->json(['mensagem' => "Registro não localizado!"]);
+        }
 
-        $data['data_nascimento'] = Carbon::createFromFormat('d/m/Y', $request['data_nascimento'])
-            ->format('Y-m-d');
-
-            
-            $registro->update($data);
-            
-            return response()->json(['mensagem'=>'cadastro salvo com sucesso!']);
+        $registro->update($data);
+        
+        return response()->json(['mensagem' => "Alteração realizada com sucesso!"] );
     }
 
-    //retorna o registro de um usuario para excluir
+// ------------------------------------Excluir Usuarios----------------------------------------------------- //
+    //retorna o registro de um usuario para excluir do banco de dados
     public function delete($id)
     {
         $registro = $this->repository->find($id);
-
         if (!$registro) {
             return redirect()->back();
         }
-
         return view('usuario.excluir', [
             'registro' => $registro,
         ]);
     }
 
-    //excluir no banco o registro do usuario
+    //excluir no banco o registro do autor
     public function excluir($id)
     {
         $registro = $this->repository->find($id);
@@ -106,7 +140,8 @@ class UsuarioRestController extends Controller
         return redirect()->route('usuario.listar');
     }
 
-    //retorna o registro para consulta - ver o registro na tela
+// ------------------------------------Consultar Usuarios----------------------------------------------------- //
+    //retorna o registro para consultar - ver o registro na tela
     public function view($id)
     {
         $registro = $this->repository->find($id);
@@ -121,9 +156,11 @@ class UsuarioRestController extends Controller
     }
 
 
-    // cancela a operação do usuario
-    public function cancel(Request $request)
+// ------------------------------------Cancelar Operação----------------------------------------------------- //
+    //cancela a operação do usuario
+    public function cancel()
     {
         return redirect()->route('usuario.listar');
     }
+
 }
